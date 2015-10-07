@@ -77,6 +77,35 @@ namespace MessageCrypt
             }
             return message;
         }
+
+        public bool isValidCharacter(char character)
+        {
+
+            if (65 <= (int)character 
+                (int)character <= 90)
+            {
+                return true;
+            }
+            return false;
+
+        }
+        public string TransposeString(string message, int cryptKey, int numberOfRows)
+        {
+
+            
+
+            string result = "";
+            for (int i = 0; i < numberOfRows; i++)
+            {
+                for (int j = 0; j < cryptKey; j++)
+                {
+                    int index = j * numberOfRows + i;
+                    result = result + message[index];
+                }
+            }
+            return result;
+
+         }
         public string[] TransposeStringIntoArray(string message, int cryptKey, int numberOfRows)
         {
             string[] result = new string[numberOfRows];
