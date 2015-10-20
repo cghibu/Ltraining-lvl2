@@ -18,10 +18,9 @@ namespace MessageCrypt
             }
             return true;
         }
-        public bool ValidateOutput(string[] message, int cryptKey)
+        public bool ValidateOutput(string message, int cryptKey)
         {
-            int cancel = 24;
-            if (message[0][0] == (char)cancel)
+            if (message == "")
             {
                 return false;
             }
@@ -31,22 +30,25 @@ namespace MessageCrypt
             }
             return true;
          }
-        public bool VerifyIfStringNeedsTrimming(string message)
+        public bool VerifyIfStringNeedsCleaning(string message, out int firstFoundIndex)
         {
             for (int i = 0; i < message.Length; i++)
             {
-                if ((int)message[i] == 32)
+                if (!char.IsLetter(message[i]))
                 {
+                    firstFoundIndex = i;
                     return true;
                 }
             }
+            firstFoundIndex = -1;
             return false;
         }
-        public string TrimSpacesAnywhere(string message)
+        public string CleanStringFromIndex(string message, int firstFoundIndex)
         {
-            for (int i = 0; i < message.Length; i++)
+            message = message.Remove(firstFoundIndex, 1);
+            for (int i = firstFoundIndex + 1; i < message.Length; i++)
             {
-                if ((int)message[i] == 32)
+                if (!char.IsLetter(message[i]))
                 {
                     message = message.Remove(i, 1);
                 }
@@ -77,18 +79,6 @@ namespace MessageCrypt
             }
             return message;
         }
-
-        public bool isValidCharacter(char character)
-        {
-
-            if (65 <= (int)character 
-                (int)character <= 90)
-            {
-                return true;
-            }
-            return false;
-
-        }
         public string TransposeString(string message, int cryptKey, int numberOfRows)
         {
 
@@ -106,7 +96,21 @@ namespace MessageCrypt
             return result;
 
          }
-        public string[] TransposeStringIntoArray(string message, int cryptKey, int numberOfRows)
+        public string RotateCharacters(string message, int cryptKey, int numberOfRows)
+        {
+            string  resultString= "";
+            for (int i = 0; i < numberOfRows; i++)
+            {
+                for (int j = 0; j < cryptKey; j++)
+                {
+                    int index = j * numberOfRows + i;
+                    resultString = resultString+message[index];
+                } 
+            }
+
+            return resultString;
+        }
+        /*public string[] TransposeStringIntoArray(string message, int cryptKey, int numberOfRows)
         {
             string[] result = new string[numberOfRows];
             for (int i = 0; i < numberOfRows; i++)
@@ -118,92 +122,112 @@ namespace MessageCrypt
                 }
             }
             return result;
-        }
-        public void AddDecryptInfo(ref string[] encryptedMessage, int charsToAdd, int numberOfRows)
+        }*/
+        public void AddDecryptInfo(ref string encryptedMessage, int charsToAdd, int numberOfRows)
         {
-            if (charsToAdd >= 0)
+            if (charsToAdd > 0)
             {
-                Array.Resize<string>(ref encryptedMessage, numberOfRows + 1);
-                encryptedMessage[encryptedMessage.Length - 1] = charsToAdd.ToString();
+                encryptedMessage = encryptedMessage + (char)charsToAdd;
             }
         }
-        public int GetDecryptInfo(ref string[] encryptedMessage)
+        public int GetDecryptInfo(ref string encryptedMessage)
         {
-            int j = 0;
-            if (int.TryParse(encryptedMessage[encryptedMessage.Length - 1], out j))
+            char decryptInfo= encryptedMessage[encryptedMessage.Length-1];
+
+            if (char.IsLetter(decryptInfo))
             {
-                Array.Resize<string>(ref encryptedMessage, encryptedMessage.Length - 1);
-                return j;
+                return 0;
             }
-            return 0;
+            encryptedMessage = encryptedMessage.Remove(encryptedMessage.Length - 1,1);
+
+            return decryptInfo;
+            
+            
         }
-        public string TransposeArrayIntoString(string[] encryptedMessage, int cryptKey)
+        public string RotateCharactersBack(string encryptedMessage, int cryptKey)
         {
             string result = "";
             for (int i = 0; i < cryptKey; i++)
             {
-                for (int j = 0; j < encryptedMessage.Length; j++)
+                for (int j = 0; j < encryptedMessage.Length/cryptKey; j++)
                 {
-                    result = result + encryptedMessage[j][i];
+                    int index = j * cryptKey + i;
+                    result = result + encryptedMessage[index];
                 }
             }
             return result;
         }
-        public void RemoveRandomCharsFromMessage(ref string message, int charsToRemove)
+        public string RemoveRandomCharsFromMessage(string message, int charsToRemove)
         {
-           message = message.Remove(message.Length - charsToRemove);
+           return message.Remove(message.Length - charsToRemove);
         }
-        public string[] EncryptMessage(string message, int cryptKey)
+        public string EncryptMessage(string message, int cryptKey)
         {
             if (ValidateInput(message, cryptKey))
             {
                 int numberOfRows = 0;
                 int charsToAdd = 0;
+                int firstFoundIndex = -1;
 
-                if (VerifyIfStringNeedsTrimming(message))
+                if (VerifyIfStringNeedsCleaning(message, out firstFoundIndex))
                 {
-                    message = TrimSpacesAnywhere(message);
+                    message = CleanStringFromIndex(message,firstFoundIndex);
                 }
                 if (VerifyIfPaddingIsNeeded(message, cryptKey, out numberOfRows, out charsToAdd))
                 {
                     message = AddRandomPaddingToMessage(message, charsToAdd);
                 }
 
-                string[] result = new string[numberOfRows];
+                message = RotateCharacters(message, cryptKey, numberOfRows);
 
-                result = TransposeStringIntoArray(message, cryptKey, numberOfRows);
+                AddDecryptInfo(ref message, charsToAdd, numberOfRows);
 
-                AddDecryptInfo(ref result, charsToAdd, numberOfRows);
-
-                return result;
+                return message;
             }
-            string[] errorResult = new string[1];
-            int cancel = 24;
-
-            errorResult[0] = errorResult[0]+(char)cancel;
-
-            return errorResult;
+                       
+            return message; 
         }
 
-        public string DecryptMessage(string[] encryptedMessage, int cryptKey)
+        public string DecryptMessage(string encryptedMessage, int cryptKey)
         {
 
             if (ValidateOutput(encryptedMessage, cryptKey))
             {
+                string result= RotateCharactersBack(encryptedMessage, cryptKey);
                 int charsToRemove = GetDecryptInfo(ref encryptedMessage);
-                string result = TransposeArrayIntoString(encryptedMessage, cryptKey);
-
                 if (charsToRemove > 0)
                 {
-                    RemoveRandomCharsFromMessage(ref result, charsToRemove);
+                    result = RemoveRandomCharsFromMessage(result, charsToRemove);
                 }
-
                 return result;
-             }
-             string badData = "Invalid Data!";
-             return badData + (char)(24);
+              
+           }
+            
+             return "Error"+ (char)24;
         }
 
+        [TestMethod]
+        public void SimpleEncryptTest()
+        {
+            string message = "superbowl starts tomorrow";
+            int cryptKey = 3;
+
+            string result = DecryptMessage(EncryptMessage(message, cryptKey),cryptKey);
+
+            Assert.AreEqual("superbowlstartstomorrow",result);
+
+        }
+        [TestMethod]
+        public void SimpleEncryptTestThreeColumnsShortMessage()
+        {
+            string message = "Ana are mere albe";
+            int cryptKey = 3;
+
+            string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
+
+            Assert.AreEqual("Anaaremerealbe", result);
+
+        }
         [TestMethod]
         public void EncryptDecryptFourColumnsStringWithSpaces()
         {
@@ -234,7 +258,7 @@ namespace MessageCrypt
 
             string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
 
-            Assert.AreEqual("OhMcDonaldshasafarmiaiaioandathisfarmhehasacowiaiaioandamu-muhereandamu-muthere", result);
+            Assert.AreEqual("OhMcDonaldshasafarmiaiaioandathisfarmhehasacowiaiaioandamumuhereandamumuthere", result);
         }
         [TestMethod]
         public void EncryptDecryptOneColumnLongStringWithSpaces()
@@ -244,7 +268,7 @@ namespace MessageCrypt
 
             string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
 
-            Assert.AreEqual("OhMcDonaldshasafarmiaiaioandathisfarmhehasacowiaiaioandamu-muhereandamu-muthere", result);
+            Assert.AreEqual("OhMcDonaldshasafarmiaiaioandathisfarmhehasacowiaiaioandamumuhereandamumuthere", result);
         }
         [TestMethod]
         public void EncryptDecryptManyColumnsLongStringWithSpaces()
@@ -254,14 +278,14 @@ namespace MessageCrypt
 
             string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
 
-            Assert.AreEqual("OhMcDonaldshasafarmiaiaioandathisfarmhehasacowiaiaioandamu-muhereandamu-muthere", result);
+            Assert.AreEqual("OhMcDonaldshasafarmiaiaioandathisfarmhehasacowiaiaioandamumuhereandamumuthere", result);
         }
         [TestMethod]
         public void EncryptDecryptNullKey()
         {
             string message = "Oh mamacita what a null key you have!";
             int cryptKey = 0;
-            string expectedResult = "Invalid Data!" + (char)(24);
+            string expectedResult = "Error" + (char)(24);
 
             string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
 
@@ -272,7 +296,7 @@ namespace MessageCrypt
         {
             string message = "";
             int cryptKey = 4;
-            string expectedResult = "Invalid Data!" + (char)(24);
+            string expectedResult = "Error" + (char)(24);
 
             string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
 
@@ -284,24 +308,12 @@ namespace MessageCrypt
         {
             string message = "";
             int cryptKey = 0;
-            string expectedResult = "Invalid Data!" + (char)(24);
+            string expectedResult = "Error" + (char)(24);
 
             string result = DecryptMessage(EncryptMessage(message, cryptKey), cryptKey);
 
             Assert.AreEqual(expectedResult, result);
         }
-        [TestMethod]
-        public void SimpleDecryptTest()
-        {
-            string[] message= new string[7] { "soro", "uwtr", "plsr", "esto", "rtow", "bamz","1"};
-            int cryptKey = 4;
-            string expectedResult = "superbowlstartstomorrow";
-            
-            string result = DecryptMessage(message, cryptKey);
-
-            Assert.AreEqual(expectedResult, result);
-            
-        }
-
+        
     }
 }
